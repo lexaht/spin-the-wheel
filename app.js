@@ -61,16 +61,31 @@ class SoundSynth {
     }
   }
 
-  resume() {
+  unlock() {
     this.init();
-    if (this.ctx && this.ctx.state === "suspended") {
+    if (!this.ctx) return;
+    
+    if (this.ctx.state === "suspended") {
       this.ctx.resume();
+    }
+    
+    // Play a brief silent sound to force iOS Web Audio engine to fully unlock the context
+    try {
+      const buffer = this.ctx.createBuffer(1, 1, 22050);
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.ctx.destination);
+      source.start(0);
+    } catch (e) {
+      console.warn("Silent audio unlock failed:", e);
     }
   }
 
   playTick() {
     if (!this.enabled || !this.ctx) return;
-    this.resume();
+    if (this.ctx.state === "suspended") {
+      this.unlock();
+    }
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -100,7 +115,9 @@ class SoundSynth {
 
   playWin() {
     if (!this.enabled || !this.ctx) return;
-    this.resume();
+    if (this.ctx.state === "suspended") {
+      this.unlock();
+    }
 
     const now = this.ctx.currentTime;
     // Energetic major-chord arpeggio: C5 (523.25), E5 (659.25), G5 (783.99), C6 (1046.50)
@@ -266,7 +283,7 @@ function drawWheel() {
     
     // Dynamic text sizing based on length and segment count
     let maxTextWidth = radius * 0.45;
-    let baseFontSize = numSegments > 12 ? 10 : (numSegments > 8 ? 12 : 14);
+    let baseFontSize = numSegments > 12 ? 16 : (numSegments > 8 ? 20 : 24);
     ctx.font = `800 ${baseFontSize}px 'Space Grotesk', sans-serif`;
 
     let displayName = slots[i].name;
@@ -276,10 +293,10 @@ function drawWheel() {
     if (textWidth > maxTextWidth) {
       let shrinkRatio = maxTextWidth / textWidth;
       let newFontSize = Math.floor(baseFontSize * shrinkRatio);
-      ctx.font = `800 ${Math.max(8, newFontSize)}px 'Space Grotesk', sans-serif`;
+      ctx.font = `800 ${Math.max(10, newFontSize)}px 'Space Grotesk', sans-serif`;
       
       // Secondary check: truncate if still too long
-      if (newFontSize < 8) {
+      if (newFontSize < 10) {
         displayName = displayName.substring(0, 10) + "...";
       }
     }
@@ -338,19 +355,16 @@ function drawWheel() {
   }
 }
 
-// Ensure Canvas scales cleanly for retina displays
-function setupCanvasHD() {
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
+// Initialize canvas size with a high-resolution, static 800x800 size
+function initCanvas() {
+  canvas.width = 800;
+  canvas.height = 800;
   drawWheel();
 }
 
 // Window resize listener
 window.addEventListener("resize", () => {
-  setupCanvasHD();
+  drawWheel();
 });
 
 // ==========================================================================
@@ -360,7 +374,7 @@ function spin() {
   if (isSpinning) return;
   
   // Resumes audio context if iOS browser has blocked it
-  synth.resume();
+  synth.unlock();
 
   isSpinning = true;
   document.getElementById("spinBtn").disabled = true;
@@ -679,7 +693,7 @@ function initializeApp() {
   loadState();
 
   // Draw initial canvas wheel
-  setupCanvasHD();
+  initCanvas();
 
   // Core Game controls
   document.getElementById("spinBtn").addEventListener("click", spin);
@@ -735,12 +749,11 @@ function initializeApp() {
 
   // iOS Safari touchstart event registration to unlock audio context instantly on first click
   const unlockAudio = () => {
-    synth.init();
-    synth.resume();
+    synth.unlock();
     document.removeEventListener("touchstart", unlockAudio);
     document.removeEventListener("click", unlockAudio);
   };
-  document.addEventListener("touchstart", unlockAudio);
+  document.addEventListener("touchstart", unlockAudio, { passive: true });
   document.addEventListener("click", unlockAudio);
 }
 

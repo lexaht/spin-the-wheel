@@ -5,6 +5,38 @@
  */
 
 // ==========================================================================
+// TEMP DEBUG OVERLAY - remove once iPhone audio issue is diagnosed
+// ==========================================================================
+(function setupDebugOverlay() {
+  const panel = document.createElement("div");
+  panel.id = "debugOverlay";
+  panel.style.cssText = "position:fixed;bottom:0;left:0;right:0;max-height:35vh;overflow-y:auto;" +
+    "background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.4 monospace;padding:6px;z-index:99999;" +
+    "white-space:pre-wrap;word-break:break-all;pointer-events:none;";
+  document.addEventListener("DOMContentLoaded", () => document.body.appendChild(panel));
+
+  window.debugLog = function (msg) {
+    const time = new Date().toISOString().substr(11, 12);
+    const line = document.createElement("div");
+    line.textContent = `[${time}] ${msg}`;
+    panel.appendChild(line);
+    while (panel.childNodes.length > 60) {
+      panel.removeChild(panel.firstChild);
+    }
+    panel.scrollTop = panel.scrollHeight;
+  };
+
+  window.addEventListener("error", (e) => {
+    window.debugLog(`UNCAUGHT ERROR: ${e.message} @ ${e.filename}:${e.lineno}`);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    window.debugLog(`UNHANDLED REJECTION: ${e.reason}`);
+  });
+
+  window.debugLog(`Boot. UA: ${navigator.userAgent}`);
+})();
+
+// ==========================================================================
 // 1. Core Presets Data
 // ==========================================================================
 const PRESETS = {
@@ -56,19 +88,28 @@ class SoundSynth {
   init() {
     if (this.ctx) return;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    window.debugLog(`init(): AudioContextClass=${AudioContextClass ? "found" : "MISSING"}`);
     if (AudioContextClass) {
       this.ctx = new AudioContextClass();
+      window.debugLog(`init(): ctx created, state=${this.ctx.state}, sampleRate=${this.ctx.sampleRate}`);
     }
   }
 
   unlock() {
     this.init();
-    if (!this.ctx) return;
-    
-    if (this.ctx.state === "suspended") {
-      this.ctx.resume();
+    if (!this.ctx) {
+      window.debugLog("unlock(): no ctx, aborting");
+      return;
     }
-    
+
+    window.debugLog(`unlock(): state before resume=${this.ctx.state}`);
+    if (this.ctx.state === "suspended") {
+      this.ctx.resume().then(
+        () => window.debugLog(`unlock(): resume() resolved, state=${this.ctx.state}`),
+        (err) => window.debugLog(`unlock(): resume() REJECTED: ${err}`)
+      );
+    }
+
     // Play a brief silent sound to force iOS Web Audio engine to fully unlock the context
     try {
       const buffer = this.ctx.createBuffer(1, 1, 22050);
@@ -76,8 +117,9 @@ class SoundSynth {
       source.buffer = buffer;
       source.connect(this.ctx.destination);
       source.start(0);
+      window.debugLog("unlock(): silent buffer started OK");
     } catch (e) {
-      console.warn("Silent audio unlock failed:", e);
+      window.debugLog(`unlock(): silent buffer FAILED: ${e}`);
     }
   }
 
@@ -114,6 +156,7 @@ class SoundSynth {
   }
 
   playWin() {
+    window.debugLog(`playWin(): enabled=${this.enabled}, ctx=${!!this.ctx}, state=${this.ctx ? this.ctx.state : "n/a"}`);
     if (!this.enabled || !this.ctx) return;
     if (this.ctx.state === "suspended") {
       this.unlock();
@@ -459,6 +502,7 @@ function showWinnerModal(winner) {
   const embedUrl = parseAppleMusicUrl(winner.url);
 
   if (embedUrl) {
+    window.debugLog(`showWinnerModal(): embedUrl=${embedUrl}`);
     // Generate Apple Music Iframe Player
     const iframe = document.createElement("iframe");
     iframe.src = embedUrl;
@@ -467,10 +511,14 @@ function showWinnerModal(winner) {
     iframe.style.height = "100%";
     iframe.style.border = "0";
     iframe.style.borderRadius = "18px";
-    
+
     // Hide loader once iframe has fully rendered
     iframe.addEventListener("load", () => {
+      window.debugLog("iframe: load event fired");
       loader.classList.add("hidden");
+    });
+    iframe.addEventListener("error", (e) => {
+      window.debugLog(`iframe: error event: ${e}`);
     });
 
     container.appendChild(iframe);
@@ -748,7 +796,8 @@ function initializeApp() {
   });
 
   // iOS Safari touchstart event registration to unlock audio context instantly on first click
-  const unlockAudio = () => {
+  const unlockAudio = (e) => {
+    window.debugLog(`unlockAudio() fired via "${e.type}" event`);
     synth.unlock();
     document.removeEventListener("touchstart", unlockAudio);
     document.removeEventListener("click", unlockAudio);

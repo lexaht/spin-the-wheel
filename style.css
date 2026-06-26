@@ -202,10 +202,12 @@ html {
   position: relative;
   width: 100%;
   max-width: 420px;
-  aspect-ratio: 1/1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 0;
+  /* Padding-percentage ratio hack instead of aspect-ratio: Safari can collapse
+     aspect-ratio to 0 height on a flex item whose own block size is indeterminate
+     during the first layout pass (column flex parent), which then collapses every
+     absolutely-positioned child (wheel, pointer, spin button) with it. */
+  padding-bottom: 100%;
   margin: 0 auto;
 }
 

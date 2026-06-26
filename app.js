@@ -5,38 +5,6 @@
  */
 
 // ==========================================================================
-// TEMP DEBUG OVERLAY - remove once iPhone audio issue is diagnosed
-// ==========================================================================
-(function setupDebugOverlay() {
-  const panel = document.createElement("div");
-  panel.id = "debugOverlay";
-  panel.style.cssText = "position:fixed;bottom:0;left:0;right:0;max-height:35vh;overflow-y:auto;" +
-    "background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.4 monospace;padding:6px;z-index:99999;" +
-    "white-space:pre-wrap;word-break:break-all;pointer-events:none;";
-  document.addEventListener("DOMContentLoaded", () => document.body.appendChild(panel));
-
-  window.debugLog = function (msg) {
-    const time = new Date().toISOString().substr(11, 12);
-    const line = document.createElement("div");
-    line.textContent = `[${time}] ${msg}`;
-    panel.appendChild(line);
-    while (panel.childNodes.length > 60) {
-      panel.removeChild(panel.firstChild);
-    }
-    panel.scrollTop = panel.scrollHeight;
-  };
-
-  window.addEventListener("error", (e) => {
-    window.debugLog(`UNCAUGHT ERROR: ${e.message} @ ${e.filename}:${e.lineno}`);
-  });
-  window.addEventListener("unhandledrejection", (e) => {
-    window.debugLog(`UNHANDLED REJECTION: ${e.reason}`);
-  });
-
-  window.debugLog(`Boot. UA: ${navigator.userAgent}`);
-})();
-
-// ==========================================================================
 // 1. Core Presets Data
 // ==========================================================================
 const PRESETS = {
@@ -88,26 +56,17 @@ class SoundSynth {
   init() {
     if (this.ctx) return;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    window.debugLog(`init(): AudioContextClass=${AudioContextClass ? "found" : "MISSING"}`);
     if (AudioContextClass) {
       this.ctx = new AudioContextClass();
-      window.debugLog(`init(): ctx created, state=${this.ctx.state}, sampleRate=${this.ctx.sampleRate}`);
     }
   }
 
   unlock() {
     this.init();
-    if (!this.ctx) {
-      window.debugLog("unlock(): no ctx, aborting");
-      return;
-    }
+    if (!this.ctx) return;
 
-    window.debugLog(`unlock(): state before resume=${this.ctx.state}`);
     if (this.ctx.state === "suspended") {
-      this.ctx.resume().then(
-        () => window.debugLog(`unlock(): resume() resolved, state=${this.ctx.state}`),
-        (err) => window.debugLog(`unlock(): resume() REJECTED: ${err}`)
-      );
+      this.ctx.resume();
     }
 
     // Play a brief silent sound to force iOS Web Audio engine to fully unlock the context
@@ -117,9 +76,8 @@ class SoundSynth {
       source.buffer = buffer;
       source.connect(this.ctx.destination);
       source.start(0);
-      window.debugLog("unlock(): silent buffer started OK");
     } catch (e) {
-      window.debugLog(`unlock(): silent buffer FAILED: ${e}`);
+      console.warn("Silent audio unlock failed:", e);
     }
   }
 
@@ -156,7 +114,6 @@ class SoundSynth {
   }
 
   playWin() {
-    window.debugLog(`playWin(): enabled=${this.enabled}, ctx=${!!this.ctx}, state=${this.ctx ? this.ctx.state : "n/a"}`);
     if (!this.enabled || !this.ctx) return;
     if (this.ctx.state === "suspended") {
       this.unlock();
@@ -502,7 +459,6 @@ function showWinnerModal(winner) {
   const embedUrl = parseAppleMusicUrl(winner.url);
 
   if (embedUrl) {
-    window.debugLog(`showWinnerModal(): embedUrl=${embedUrl}`);
     // Generate Apple Music Iframe Player
     const iframe = document.createElement("iframe");
     iframe.src = embedUrl;
@@ -514,11 +470,7 @@ function showWinnerModal(winner) {
 
     // Hide loader once iframe has fully rendered
     iframe.addEventListener("load", () => {
-      window.debugLog("iframe: load event fired");
       loader.classList.add("hidden");
-    });
-    iframe.addEventListener("error", (e) => {
-      window.debugLog(`iframe: error event: ${e}`);
     });
 
     container.appendChild(iframe);
@@ -694,6 +646,48 @@ function saveDrawerSettings() {
   document.getElementById("statusIndicator").textContent = "CONFIG SAVED. READY!";
 }
 
+// ==========================================================================
+// 8b. Cross-Device Config Sync (export/import slots as a JSON text blob)
+// ==========================================================================
+function exportConfig() {
+  const blob = JSON.stringify(slots);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(blob).then(() => {
+      alert("Config copied to clipboard! Paste it into Import on the other device.");
+    }, () => {
+      prompt("Copy this config text:", blob);
+    });
+  } else {
+    prompt("Copy this config text:", blob);
+  }
+}
+
+function importConfig() {
+  const input = prompt("Paste the exported config text:");
+  if (!input) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(input);
+  } catch (e) {
+    alert("That doesn't look like valid config text.");
+    return;
+  }
+
+  if (!Array.isArray(parsed) || parsed.length < 2 || !parsed.every(s => s && typeof s.name === "string")) {
+    alert("Config format not recognized.");
+    return;
+  }
+
+  slots = parsed;
+  saveState();
+  renderSlotsEditor();
+  updateSlotCountBadge();
+  highlightActivePreset();
+  drawWheel();
+  document.getElementById("statusIndicator").textContent = "CONFIG IMPORTED!";
+}
+
 function resetToDefaultPresets() {
   if (confirm("Reset all settings to default Party Classics?")) {
     slots = JSON.parse(JSON.stringify(PRESETS.party));
@@ -753,6 +747,8 @@ function initializeApp() {
   document.getElementById("saveSettingsBtn").addEventListener("click", saveDrawerSettings);
   document.getElementById("addSlotBtn").addEventListener("click", addNewSlotField);
   document.getElementById("resetDefaultsBtn").addEventListener("click", resetToDefaultPresets);
+  document.getElementById("exportConfigBtn").addEventListener("click", exportConfig);
+  document.getElementById("importConfigBtn").addEventListener("click", importConfig);
 
   // Slots delegation click handlers (for Remove buttons)
   slotsListContainer.addEventListener("click", (e) => {
@@ -796,8 +792,7 @@ function initializeApp() {
   });
 
   // iOS Safari touchstart event registration to unlock audio context instantly on first click
-  const unlockAudio = (e) => {
-    window.debugLog(`unlockAudio() fired via "${e.type}" event`);
+  const unlockAudio = () => {
     synth.unlock();
     document.removeEventListener("touchstart", unlockAudio);
     document.removeEventListener("click", unlockAudio);

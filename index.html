@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Crucial mobile-first setup: disable viewport zoom to ensure smooth gesture interactions -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Spin & Beats - Party Wheel</title>
+  
+  <!-- iOS Web App Meta Tags for PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Spin&Beats">
+  <link rel="apple-touch-icon" href="icon.png">
+  
+  <!-- Manifest for Android and Safari PWA configuration -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- Core Design Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  
+  <!-- Premium Party Background Glows -->
+  <div class="glow-bg">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="title-area">
+        <h1>SPIN &amp; BEATS</h1>
+        <span class="subtitle">THE ULTIMATE PARTY WHEEL</span>
+      </div>
+      <div class="header-controls">
+        <button id="soundToggle" class="icon-btn" aria-label="Toggle sound">
+          <svg class="icon sound-on" viewBox="0 0 24 24" width="24" height="24">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+          <svg class="icon sound-off hidden" viewBox="0 0 24 24" width="24" height="24">
+            <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+          </svg>
+        </button>
+        <button id="settingsToggle" class="icon-btn" aria-label="Open settings">
+          <svg class="icon" viewBox="0 0 24 24" width="24" height="24">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="game-area">
+      <div class="wheel-outer-container">
+        <!-- Pointer (indicator) pointing down at the top of the wheel -->
+        <div class="wheel-pointer"></div>
+        
+        <!-- Canvas wrapper for glow effects -->
+        <div class="canvas-glow-wrapper">
+          <canvas id="wheelCanvas" width="500" height="500"></canvas>
+        </div>
+        
+        <!-- Interactive Center Spin Pin -->
+        <button id="spinBtn" class="spin-center-btn">
+          <span class="btn-text">SPIN</span>
+        </button>
+      </div>
+      
+      <!-- Interactive status feedback -->
+      <div id="statusIndicator" class="status-indicator">TAP THE SPIN BUTTON!</div>
+    </main>
+  </div>
+
+  <!-- Apple Music Winning Modal -->
+  <div id="winnerModal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel animate-pop">
+      <button id="modalClose" class="close-btn" aria-label="Close modal">&times;</button>
+      
+      <div class="modal-header">
+        <span class="modal-tag">YOU LANDED ON</span>
+        <h2 id="winnerTitle" class="gradient-text">Dance Off!</h2>
+      </div>
+
+      <div class="modal-body">
+        <!-- Loader during iframe retrieval -->
+        <div id="playerLoader" class="loader hidden">
+          <div class="spinner"></div>
+          <p>Connecting to Apple Music...</p>
+        </div>
+        
+        <!-- Apple Music Widget Container -->
+        <div id="playerContainer" class="player-container">
+          <!-- Iframe will be injected here dynamically by app.js -->
+        </div>
+
+        <div class="login-tip">
+          <p>💡 <em>Tip: Sign in using the button in the top right of the player above to unlock full song playback! Otherwise, it will play a 30-90 second preview.</em></p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="spinAgainBtn" class="action-btn">SPIN AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Panel (Drawer) -->
+  <div id="settingsDrawer" class="drawer-overlay hidden">
+    <div class="drawer-content glass-panel">
+      <header class="drawer-header">
+        <h2>CONFIGURE WHEEL</h2>
+        <button id="settingsClose" class="close-btn" aria-label="Close settings">&times;</button>
+      </header>
+
+      <div class="drawer-body">
+        <!-- Preset Picker -->
+        <section class="settings-section">
+          <h3>CHOOSE PRESET</h3>
+          <div class="presets-grid">
+            <button class="preset-btn" data-preset="party">🎉 Party Classics</button>
+            <button class="preset-btn" data-preset="hiphop">🔥 Urban Beats</button>
+            <button class="preset-btn" data-preset="chill">🌅 Chill Vibe</button>
+          </div>
+        </section>
+
+        <!-- Slots Manager -->
+        <section class="settings-section">
+          <div class="section-title-row">
+            <h3>WHEEL SLOTS</h3>
+            <span id="slotCount" class="badge">8 Slots</span>
+          </div>
+          
+          <div id="slotsList" class="slots-list">
+            <!-- Dynamically populated slots -->
+          </div>
+
+          <button id="addSlotBtn" class="secondary-btn">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            ADD NEW SLOT
+          </button>
+        </section>
+      </div>
+
+      <footer class="drawer-footer">
+        <button id="resetDefaultsBtn" class="danger-link-btn">Reset Defaults</button>
+        <button id="saveSettingsBtn" class="action-btn">SAVE &amp; APPLY</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- App logic entry -->
+  <script src="app.js"></script>
+  
+  <!-- Register PWA Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered successfully!', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

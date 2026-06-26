@@ -1,0 +1,7 @@
+node_modules/
+cert.pem
+key.pem
+generate-cert.js
+package.json
+package-lock.json
+.system_generated/
